@@ -23,22 +23,22 @@ public class TabooSolver implements Solver {
 	public Result solve(Instance instance, long deadline) {
 		
 		   long start = System.currentTimeMillis();
-	       Schedule initsol = new GreedySolver(GreedySolver.Priority.EST_SPT).solve(instance, deadline).schedule;
+	       Schedule initsol = new GreedySolver(GreedySolver.Priority.EST_LRPT).solve(instance, deadline).schedule;
 	       int min = initsol.makespan();
 	       int currentSpan = min;
 	       int niter = 0;
 	       ResourceOrder minSol = ResourceOrder.fromSchedule(initsol);
 	       ResourceOrder currentSol = ResourceOrder.fromSchedule(initsol);
-	       Swap bestSwap = null;
+           int[][][][] taboos = new int[instance.numJobs][instance.numTasks][instance.numJobs][instance.numTasks]; 
 	       while(niter < this.maxIter) {
 	    	   if(System.currentTimeMillis() - start >= deadline) {
 	    		   return new Result(minSol.instance, minSol.toSchedule(), Result.ExitCause.Timeout);
 	    	   }
+	    	   Swap bestSwap = null;
 	    	   niter++;
 	    	   List<DescentSolver.Block> blocks = DescentSolver.blocksOfCriticalPath(currentSol);
 	    	   ResourceOrder saveCurrentSol = new ResourceOrder(currentSol.instance, currentSol.order);
 	    	   ResourceOrder minNeighbor = null;
-	           int[][][][] taboos = new int[instance.numJobs][instance.numTasks][instance.numJobs][instance.numTasks]; 
 	    	   int minN = -1;
 	    	   for(DescentSolver.Block block : blocks) {
 	    		   List<DescentSolver.Swap> swaps = DescentSolver.neighbors(block);
@@ -57,13 +57,19 @@ public class TabooSolver implements Solver {
 	    			   }
 	    		   }
 	    	   }
+	    	   if(bestSwap != null) {
 			   Task t1 = saveCurrentSol.order[bestSwap.machine][bestSwap.t1];
 			   Task t2 = saveCurrentSol.order[bestSwap.machine][bestSwap.t2];
+			//   System.out.println("Le tabou sur ce swap est de "+taboos[t1.job][t1.task][t2.job][t2.task]+" et nous sommes à l'itération "+niter);
 			   taboos[t2.job][t2.task][t1.job][t1.task] = niter+this.dureeTaboo;					   
 	    	   currentSol = minNeighbor;
+	    	//   System.out.println("swap tache "+t1+"avec "+t2);
+	    	//   System.out.println("Le swap : "+bestSwap.t1+" "+bestSwap.t2);
+	    	//   System.out.println("meilleur voisin : "+minN);
 	    	   if(minN < min) {
 	    		   min = minN;
 	    		   minSol = minNeighbor;
+	    	   }
 	    	   }
 	       }
 	       return new Result(minSol.instance, minSol.toSchedule(), Result.ExitCause.Blocked);
